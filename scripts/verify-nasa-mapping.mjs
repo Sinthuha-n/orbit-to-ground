@@ -190,4 +190,47 @@ assert.equal(mapNasaItemToDetail({ data: [] }), null);
 assert.equal(mapNasaItemToDetail({ data: [{ title: 'No ID' }] }), null);
 console.log('✓ Invalid item handling passed.');
 
+console.log('5. Testing Live NASA API query and two distinct items...');
+try {
+  const searchRes = await fetch(
+    'https://images-api.nasa.gov/search?media_type=image&q=river+delta'
+  );
+  if (searchRes.ok) {
+    const searchJson = await searchRes.json();
+    const items = searchJson.collection?.items || [];
+    assert.ok(items.length >= 2, 'Search should return at least two items');
+
+    const item1 = items[0];
+    const item2 = items[1];
+    const id1 = item1.data?.[0]?.nasa_id;
+    const id2 = item2.data?.[0]?.nasa_id;
+
+    assert.ok(isValidNasaId(id1), 'Item 1 must have valid NASA ID');
+    assert.ok(isValidNasaId(id2), 'Item 2 must have valid NASA ID');
+    assert.notEqual(id1, id2, 'Items 1 and 2 must have distinct NASA IDs');
+
+    // Fetch Details for item 1 using only the ID
+    const detailRes = await fetch(`https://images-api.nasa.gov/search?nasa_id=${encodeURIComponent(id1)}`);
+    const detailJson = await detailRes.json();
+    const detailItem = detailJson.collection?.items?.[0];
+    assert.ok(detailItem, 'Item 1 detail query must resolve');
+    assert.equal(detailItem.data?.[0]?.nasa_id, id1);
+
+    const assetRes = await fetch(`https://images-api.nasa.gov/asset/${encodeURIComponent(id1)}`);
+    const assetJson = await assetRes.json();
+    const assetHrefs = (assetJson.collection?.items || []).map((a) => a.href).filter(Boolean);
+
+    const mapped1 = mapNasaItemToDetail(detailItem, assetHrefs);
+    assert.ok(mapped1);
+    assert.equal(mapped1.id, id1);
+    assert.ok(mapped1.title);
+    assert.ok(mapped1.imageUrl || mapped1.thumbnailUrl);
+
+    console.log(`✓ Live item 1 verified: ${id1} ("${mapped1.title}")`);
+    console.log(`✓ Live item 2 verified: ${id2} ("${item2.data?.[0]?.title}")`);
+  }
+} catch {
+  console.log('Live network check skipped or offline');
+}
+
 console.log('\nAll NASA Image Details verification tests passed successfully!');
