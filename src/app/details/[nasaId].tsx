@@ -4,6 +4,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,9 +14,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FavouriteButton } from '@/components/favourite-button';
+import { GroundJournalEditor } from '@/components/ground-journal-editor';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FavouriteButton } from '@/components/favourite-button';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useGetImageDetailsQuery } from '@/store/api/nasa-api';
@@ -243,21 +246,33 @@ export default function DetailsScreen() {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.six }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={() => {
-              refetch();
-            }}
-            tintColor={theme.text}
-          />
-        }>
-        <View style={styles.innerContainer}>
-          {/* Orbital Image Presentation or Unavailable Image Fallback */}
-          <View style={[styles.imageCard, { backgroundColor: theme.backgroundSelected }]}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.six }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={isFetching && !isLoading}
+              onRefresh={() => {
+                refetch();
+              }}
+              tintColor={theme.text}
+            />
+          }>
+          <View style={styles.innerContainer}>
+            {/* From Orbit Section Header */}
+            <View style={styles.orbitBadgeRow}>
+              <View style={[styles.orbitBadge, { backgroundColor: '#208AEF' }]}>
+                <Feather name="globe" size={13} color="#FFFFFF" />
+                <ThemedText style={styles.orbitBadgeText}>From Orbit • Satellite Observation</ThemedText>
+              </View>
+            </View>
+
+            {/* Orbital Image Presentation or Unavailable Image Fallback */}
+            <View style={[styles.imageCard, { backgroundColor: theme.backgroundSelected }]}>
             {shouldShowImage ? (
               <Image
                 source={{ uri: observation.imageUrl! }}
@@ -345,6 +360,15 @@ export default function DetailsScreen() {
             )}
           </ThemedView>
 
+          {/* From Ground Section (Personal Field Journal & Comparison Photo) */}
+          <GroundJournalEditor
+            nasaId={observation.id}
+            title={observation.title}
+            thumbnailUrl={observation.thumbnailUrl || observation.imageUrl}
+            center={observation.center}
+            dateCreated={observation.dateCreated}
+          />
+
           {/* Scientific Keywords */}
           {observation.keywords.length > 0 ? (
             <View style={styles.keywordsSection}>
@@ -366,12 +390,16 @@ export default function DetailsScreen() {
           ) : null}
         </View>
       </ScrollView>
-    </ThemedView>
-  );
+    </KeyboardAvoidingView>
+  </ThemedView>
+);
 }
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  keyboardAvoid: {
     flex: 1,
   },
   stickyHeaderWrapper: {
@@ -384,6 +412,24 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
+  },
+  orbitBadgeRow: {
+    marginBottom: Spacing.two,
+  },
+  orbitBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.two + Spacing.half,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.two,
+  },
+  orbitBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.3,
   },
   topBar: {
     flexDirection: 'row',

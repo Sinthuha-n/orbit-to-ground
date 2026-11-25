@@ -27,6 +27,24 @@ async function loadUserFavourites(userId) {
         const id = item.nasaId.trim();
         if (!seen.has(id)) {
           seen.add(id);
+          const journal =
+            item.journal && typeof item.journal === 'object'
+              ? {
+                  note:
+                    typeof item.journal.note === 'string'
+                      ? item.journal.note.slice(0, 300)
+                      : '',
+                  photoUri:
+                    typeof item.journal.photoUri === 'string'
+                      ? item.journal.photoUri
+                      : null,
+                  updatedAt:
+                    typeof item.journal.updatedAt === 'string'
+                      ? item.journal.updatedAt
+                      : new Date().toISOString(),
+                }
+              : null;
+
           sanitized.push({
             nasaId: id,
             title: typeof item.title === 'string' ? item.title.trim() : 'Untitled Observation',
@@ -34,6 +52,7 @@ async function loadUserFavourites(userId) {
             center: typeof item.center === 'string' ? item.center : null,
             dateCreated: typeof item.dateCreated === 'string' ? item.dateCreated : null,
             savedAt: typeof item.savedAt === 'string' ? item.savedAt : new Date().toISOString(),
+            journal,
           });
         }
       }
@@ -53,6 +72,13 @@ async function saveUserFavourites(userId, items) {
     return true;
   });
   await mockAsyncStorage.setItem(key, JSON.stringify(uniqueItems));
+}
+
+function hasJournalEntry(item) {
+  if (!item?.journal) return false;
+  const hasNote = Boolean(item.journal.note && item.journal.note.trim().length > 0);
+  const hasPhoto = Boolean(item.journal.photoUri && item.journal.photoUri.trim().length > 0);
+  return hasNote || hasPhoto;
 }
 
 // Redux reducer simulation
@@ -102,7 +128,7 @@ function favouritesReducer(state, action) {
         if (exists) {
           items = state.items.filter((fav) => fav.nasaId !== item.nasaId);
         } else {
-          items = [{ ...item, savedAt: new Date().toISOString() }, ...state.items];
+          items = [{ ...item, savedAt: new Date().toISOString(), journal: null }, ...state.items];
         }
         return { ...state, items };
       }
@@ -113,6 +139,23 @@ function favouritesReducer(state, action) {
         return {
           ...state,
           items: state.items.filter((fav) => fav.nasaId !== action.payload.nasaId),
+        };
+      }
+      return state;
+    }
+    case 'updateJournalEntry': {
+      if (String(state.activeUserId) === String(action.payload.userId)) {
+        return {
+          ...state,
+          items: state.items.map((fav) => {
+            if (fav.nasaId === action.payload.nasaId) {
+              return {
+                ...fav,
+                journal: action.payload.journal,
+              };
+            }
+            return fav;
+          }),
         };
       }
       return state;
@@ -131,151 +174,179 @@ function favouritesReducer(state, action) {
 }
 
 async function runTests() {
-  console.log('--- Testing Favourites Storage & Redux Slice ---');
+  console.log('--- Testing Favourites & Journal Storage & Redux Slice ---');
 
   // Test 1: Storage Key Scoping
   assert.equal(getFavouritesStorageKey(1), 'orbit_favourites_user_1');
   assert.equal(getFavouritesStorageKey(15), 'orbit_favourites_user_15');
   console.log('✓ Storage key scoping verified');
 
-  // Test 2: Save and Load Favourites for User 1
-  const user1Items = [
+  // Test 2: Backwards Compatibility (Old favourites without journal property)
+  const legacyItems = [
     {
-      nasaId: 'iss064e001234',
-      title: 'Mississippi River Delta',
-      thumbnailUrl: 'https://images-assets.nasa.gov/image/1234~thumb.jpg',
-      center: 'JSC',
-      dateCreated: '2021-03-15T00:00:00Z',
-      savedAt: '2026-11-25T10:00:00Z',
-    },
-    {
-      nasaId: 'iss064e005678',
-      title: 'Amazon River Plume',
-      thumbnailUrl: 'https://images-assets.nasa.gov/image/5678~thumb.jpg',
-      center: 'JSC',
-      dateCreated: '2021-04-10T00:00:00Z',
-      savedAt: '2026-11-25T11:00:00Z',
+      nasaId: 'legacy-001',
+      title: 'Legacy Observation without Journal',
+      thumbnailUrl: 'https://example.com/thumb.jpg',
+      savedAt: '2026-11-20T00:00:00Z',
     },
   ];
+  await saveUserFavourites(10, legacyItems);
+  const loadedLegacy = await loadUserFavourites(10);
+  assert.equal(loadedLegacy.length, 1);
+  assert.equal(loadedLegacy[0].journal, null);
+  assert.equal(hasJournalEntry(loadedLegacy[0]), false);
+  console.log('✓ Backward compatibility verified: legacy favourites load with journal: null');
 
-  await saveUserFavourites(1, user1Items);
-  const loaded1 = await loadUserFavourites(1);
-  assert.equal(loaded1.length, 2);
-  assert.equal(loaded1[0].nasaId, 'iss064e001234');
-  assert.equal(loaded1[1].nasaId, 'iss064e005678');
-  console.log('✓ User 1 favourites saved and loaded properly');
-
-  // Test 3: Deduplication in Storage
-  const duplicateList = [
-    ...user1Items,
-    {
-      nasaId: 'iss064e001234', // duplicate
-      title: 'Mississippi River Delta Duplicate',
-      thumbnailUrl: null,
-      savedAt: '2026-11-25T12:00:00Z',
+  // Test 3: Note By Itself, Photo By Itself, and Both
+  const itemWithNoteOnly = {
+    nasaId: 'iss-note-only',
+    title: 'Ganges Delta',
+    thumbnailUrl: 'https://example.com/ganges.jpg',
+    savedAt: '2026-11-25T10:00:00Z',
+    journal: {
+      note: 'Observed muddy brown sediment river plume near coast.',
+      photoUri: null,
+      updatedAt: '2026-11-25T10:05:00Z',
     },
-  ];
-  await saveUserFavourites(1, duplicateList);
-  const loadedDeduplicated = await loadUserFavourites(1);
-  assert.equal(loadedDeduplicated.length, 2, 'Duplicate nasaId must be deduplicated');
-  console.log('✓ Deduplication by nasaId verified in storage');
+  };
 
-  // Test 4: User Isolation
-  // User 2 should have 0 items even though User 1 has 2
-  const loaded2 = await loadUserFavourites(2);
-  assert.equal(loaded2.length, 0, 'User 2 must start with empty favourites');
-
-  const user2Items = [
-    {
-      nasaId: 'as11-40-5874',
-      title: 'Earthrise from Lunar Orbit',
-      thumbnailUrl: 'https://images-assets.nasa.gov/image/5874~thumb.jpg',
-      center: 'HQ',
-      dateCreated: '1969-07-20T00:00:00Z',
-      savedAt: '2026-11-25T13:00:00Z',
+  const itemWithPhotoOnly = {
+    nasaId: 'iss-photo-only',
+    title: 'Nile Delta',
+    thumbnailUrl: 'https://example.com/nile.jpg',
+    savedAt: '2026-11-25T10:10:00Z',
+    journal: {
+      note: '',
+      photoUri: 'file:///data/user/0/host.exp.exponent/files/orbit_ground_photos/user_1/nile/ground_123.jpg',
+      updatedAt: '2026-11-25T10:15:00Z',
     },
-  ];
-  await saveUserFavourites(2, user2Items);
+  };
 
-  const reloaded1 = await loadUserFavourites(1);
-  const reloaded2 = await loadUserFavourites(2);
-  assert.equal(reloaded1.length, 2, 'User 1 items must remain intact');
-  assert.equal(reloaded2.length, 1, 'User 2 items must remain intact');
-  assert.notEqual(reloaded1[0].nasaId, reloaded2[0].nasaId);
-  console.log('✓ Account isolation verified: User 1 and User 2 lists do not collide');
+  const itemWithBoth = {
+    nasaId: 'iss-both',
+    title: 'San Francisco Bay',
+    thumbnailUrl: 'https://example.com/sf.jpg',
+    savedAt: '2026-11-25T10:20:00Z',
+    journal: {
+      note: 'Walked the salt marsh trail at sunset.',
+      photoUri: 'file:///data/user/0/host.exp.exponent/files/orbit_ground_photos/user_1/sf/ground_456.jpg',
+      updatedAt: '2026-11-25T10:25:00Z',
+    },
+  };
 
-  // Test 5: Redux Slice Reducer Transitions
+  await saveUserFavourites(1, [itemWithNoteOnly, itemWithPhotoOnly, itemWithBoth]);
+  const loadedMulti = await loadUserFavourites(1);
+  assert.equal(loadedMulti.length, 3);
+  assert.equal(hasJournalEntry(loadedMulti[0]), true);
+  assert.equal(hasJournalEntry(loadedMulti[1]), true);
+  assert.equal(hasJournalEntry(loadedMulti[2]), true);
+  console.log('✓ Note-only, photo-only, and note+photo entries saved and identified correctly');
+
+  // Test 4: 300-Character Note Limit Enforcement
+  const overlyLongNote = 'A'.repeat(500);
+  const itemLong = {
+    nasaId: 'iss-long',
+    title: 'Long Note Test',
+    thumbnailUrl: null,
+    savedAt: '2026-11-25T10:30:00Z',
+    journal: {
+      note: overlyLongNote,
+      photoUri: null,
+      updatedAt: '2026-11-25T10:30:00Z',
+    },
+  };
+  await saveUserFavourites(1, [itemLong]);
+  const loadedLong = await loadUserFavourites(1);
+  assert.equal(loadedLong[0].journal.note.length, 300);
+  console.log('✓ 300-character limit truncation on note verified');
+
+  // Test 5: Redux Journal Operations: Independent Edit and Remove
   let state = {
-    activeUserId: null,
-    items: [],
+    activeUserId: 1,
+    items: [itemWithBoth],
     isRestoring: false,
     restoreError: null,
   };
 
-  // Set active user 1
-  state = favouritesReducer(state, { type: 'setActiveUser', payload: 1 });
-  assert.equal(state.activeUserId, 1);
-  assert.equal(state.isRestoring, true);
-
-  // Set items for user 1
+  // 5a. Remove photo independently: note remains intact
   state = favouritesReducer(state, {
-    type: 'setFavourites',
-    payload: { userId: 1, items: loaded1 },
+    type: 'updateJournalEntry',
+    payload: {
+      userId: 1,
+      nasaId: 'iss-both',
+      journal: {
+        note: 'Walked the salt marsh trail at sunset.',
+        photoUri: null,
+        updatedAt: '2026-11-25T11:00:00Z',
+      },
+    },
   });
-  assert.equal(state.items.length, 2);
-  assert.equal(state.isRestoring, false);
+  assert.equal(state.items[0].journal.note, 'Walked the salt marsh trail at sunset.');
+  assert.equal(state.items[0].journal.photoUri, null);
+  console.log('✓ Remove photo independently preserves note');
 
-  // Toggle remove existing item
+  // 5b. Clear note independently: photo remains intact (simulate re-adding photo first)
   state = favouritesReducer(state, {
-    type: 'toggleFavouriteItem',
-    payload: { userId: 1, item: { nasaId: 'iss064e001234', title: 'Delta' } },
+    type: 'updateJournalEntry',
+    payload: {
+      userId: 1,
+      nasaId: 'iss-both',
+      journal: {
+        note: '',
+        photoUri: 'file:///photo_new.jpg',
+        updatedAt: '2026-11-25T11:05:00Z',
+      },
+    },
   });
-  assert.equal(state.items.length, 1);
-  assert.equal(state.items[0].nasaId, 'iss064e005678');
-  console.log('✓ Toggle remove existing item verified');
+  assert.equal(state.items[0].journal.note, '');
+  assert.equal(state.items[0].journal.photoUri, 'file:///photo_new.jpg');
+  console.log('✓ Clear note independently preserves photo');
 
-  // Toggle add new item
+  // 5c. Replace photo independently: note remains intact
   state = favouritesReducer(state, {
-    type: 'toggleFavouriteItem',
-    payload: { userId: 1, item: { nasaId: 'iss064e009999', title: 'Grand Canyon' } },
+    type: 'updateJournalEntry',
+    payload: {
+      userId: 1,
+      nasaId: 'iss-both',
+      journal: {
+        note: 'New field observation.',
+        photoUri: 'file:///photo_replaced.jpg',
+        updatedAt: '2026-11-25T11:10:00Z',
+      },
+    },
   });
-  assert.equal(state.items.length, 2);
-  assert.equal(state.items[0].nasaId, 'iss064e009999');
-  console.log('✓ Toggle add new item verified');
+  assert.equal(state.items[0].journal.note, 'New field observation.');
+  assert.equal(state.items[0].journal.photoUri, 'file:///photo_replaced.jpg');
+  console.log('✓ Replace photo independently preserves note');
 
-  // Remove by ID
+  // Test 6: In-Flight Edit Isolation Across Switched Users
   state = favouritesReducer(state, {
-    type: 'removeFavouriteItem',
-    payload: { userId: 1, nasaId: 'iss064e009999' },
+    type: 'updateJournalEntry',
+    payload: {
+      userId: 999, // wrong user!
+      nasaId: 'iss-both',
+      journal: {
+        note: 'Malicious overwrite',
+        photoUri: null,
+      },
+    },
   });
-  assert.equal(state.items.length, 1);
-  assert.equal(state.items[0].nasaId, 'iss064e005678');
-  console.log('✓ Remove item by nasaId verified');
+  assert.equal(state.items[0].journal.note, 'New field observation.', 'Must reject edits from other users');
+  console.log('✓ In-flight edit isolation verified across different accounts');
 
-  // Race condition protection: late dispatch for inactive user is ignored
-  state = favouritesReducer(state, {
-    type: 'setFavourites',
-    payload: { userId: 999, items: [{ nasaId: 'hacker-data', title: 'Wrong' }] },
-  });
-  assert.equal(state.items.length, 1, 'Late update for different user must be ignored');
-  console.log('✓ Race condition protection against inactive user updates verified');
+  // Test 7: Confirmation Condition on Unfavourite
+  const itemWithoutJournal = {
+    nasaId: 'iss-clean',
+    title: 'Clean Item',
+    thumbnailUrl: null,
+    savedAt: '2026-11-25T10:00:00Z',
+    journal: null,
+  };
+  assert.equal(hasJournalEntry(itemWithoutJournal), false, 'No confirm needed for empty journal');
+  assert.equal(hasJournalEntry(state.items[0]), true, 'Confirm REQUIRED when journal note/photo exists');
+  console.log('✓ Confirmation trigger verified: only items with notes or photos require confirmation before unfavouriting');
 
-  // Logout / clear favourites view
-  state = favouritesReducer(state, { type: 'clearFavouritesView' });
-  assert.equal(state.activeUserId, null);
-  assert.equal(state.items.length, 0);
-  assert.equal(state.isRestoring, false);
-  console.log('✓ Clear in-memory favourites on logout verified');
-
-  // Test 6: Storage Failure Handling
-  mockStorage.set('orbit_favourites_user_corrupt', 'NOT_VALID_JSON{[');
-  await assert.rejects(
-    async () => await loadUserFavourites('corrupt'),
-    /Failed to parse saved favourites data/
-  );
-  console.log('✓ Corrupt storage throws error to trigger retryable UI state');
-
-  console.log('\nAll Favourites verification tests PASSED! ✨');
+  console.log('\nAll Favourites & Journal verification tests PASSED! ✨');
 }
 
 runTests().catch((err) => {

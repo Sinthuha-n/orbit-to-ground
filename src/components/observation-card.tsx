@@ -8,7 +8,9 @@ import { FavouriteButton } from '@/components/favourite-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useFavourites } from '@/hooks/use-favourites';
 import { useTheme } from '@/hooks/use-theme';
+import { hasJournalEntry } from '@/types/favourites';
 import { NasaEarthObservation } from '@/types/nasa';
 
 interface ObservationCardProps {
@@ -17,7 +19,11 @@ interface ObservationCardProps {
 
 export function ObservationCard({ item }: ObservationCardProps) {
   const theme = useTheme();
+  const { getFavourite } = useFavourites();
   const [hasImageError, setHasImageError] = useState(false);
+
+  const favItem = getFavourite(item.id);
+  const hasJournal = hasJournalEntry(favItem);
 
   const shouldShowImage = Boolean(item.thumbnailUrl) && !hasImageError;
 
@@ -77,10 +83,20 @@ export function ObservationCard({ item }: ObservationCardProps) {
         {/* Content Details */}
         <View style={styles.content}>
           <View style={styles.metaRow}>
-            <ThemedText type="code" themeColor="textSecondary" style={styles.idBadge}>
-              {item.center ? `${item.center} • ` : ''}
-              {item.id}
-            </ThemedText>
+            <View style={styles.idBadgeGroup}>
+              <ThemedText type="code" themeColor="textSecondary" style={styles.idBadge}>
+                {item.center ? `${item.center} • ` : ''}
+                {item.id}
+              </ThemedText>
+              {hasJournal ? (
+                <View style={[styles.journalPill, { backgroundColor: 'rgba(32, 138, 239, 0.12)' }]}>
+                  <Feather name="book-open" size={10} color="#208AEF" />
+                  <ThemedText type="code" style={styles.journalPillText}>
+                    Ground Note
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
             <Feather
               name="chevron-right"
               size={16}
@@ -163,6 +179,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  idBadgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  journalPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.half,
+    paddingHorizontal: Spacing.one + Spacing.half,
+    paddingVertical: 2,
+    borderRadius: Spacing.one,
+  },
+  journalPillText: {
+    fontSize: 10,
+    color: '#208AEF',
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   idBadge: {
     fontSize: 11,
