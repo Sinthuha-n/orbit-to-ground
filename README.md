@@ -4,7 +4,6 @@
 - **Student Index**: `234197U`  
 - **Domain**: Space & Science (NASA Earth Observation Imagery)  
 - **Required Twist**: Personal Notes & Photos ("From Orbit" vs "From Ground" Field Journal)  
-- **Submission Deadline**: 13 December 2026, 11:59 PM  
 
 ---
 
