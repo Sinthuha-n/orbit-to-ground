@@ -1,7 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -19,64 +20,94 @@ export function ObservationCard({ item }: ObservationCardProps) {
 
   const shouldShowImage = Boolean(item.thumbnailUrl) && !hasImageError;
 
-  return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      {/* Thumbnail or Fallback Icon */}
-      <View style={[styles.imageContainer, { backgroundColor: theme.backgroundSelected }]}>
-        {shouldShowImage ? (
-          <Image
-            source={{ uri: item.thumbnailUrl! }}
-            style={styles.thumbnail}
-            contentFit="cover"
-            transition={200}
-            onError={() => setHasImageError(true)}
-            accessibilityLabel={item.title}
-          />
-        ) : (
-          <View style={styles.fallbackContainer}>
-            <Feather name="image" size={36} color={theme.textSecondary} />
-            <ThemedText type="small" themeColor="textSecondary" style={styles.fallbackText}>
-              Image unavailable
-            </ThemedText>
-          </View>
-        )}
-      </View>
+  const handlePress = () => {
+    // Only pass the validated ID to the Details route
+    if (item.id && typeof item.id === 'string') {
+      router.push({
+        pathname: '/details/[nasaId]',
+        params: { nasaId: item.id.trim() },
+      });
+    }
+  };
 
-      {/* Content Details */}
-      <View style={styles.content}>
-        <View style={styles.metaRow}>
-          <ThemedText type="code" themeColor="textSecondary" style={styles.idBadge}>
-            {item.center ? `${item.center} • ` : ''}
-            {item.id}
-          </ThemedText>
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={({ pressed }) => [styles.pressable, pressed && styles.cardPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`View details for ${item.title}`}
+      accessibilityHint="Navigates to full NASA orbital observation details">
+      <ThemedView type="backgroundElement" style={styles.card}>
+        {/* Thumbnail or Fallback Icon */}
+        <View style={[styles.imageContainer, { backgroundColor: theme.backgroundSelected }]}>
+          {shouldShowImage ? (
+            <Image
+              source={{ uri: item.thumbnailUrl! }}
+              style={styles.thumbnail}
+              contentFit="cover"
+              transition={200}
+              onError={() => setHasImageError(true)}
+              accessibilityLabel={item.title}
+            />
+          ) : (
+            <View style={styles.fallbackContainer}>
+              <Feather name="image" size={36} color={theme.textSecondary} />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.fallbackText}>
+                Image unavailable
+              </ThemedText>
+            </View>
+          )}
         </View>
 
-        <ThemedText type="default" style={styles.title} numberOfLines={2}>
-          {item.title}
-        </ThemedText>
+        {/* Content Details */}
+        <View style={styles.content}>
+          <View style={styles.metaRow}>
+            <ThemedText type="code" themeColor="textSecondary" style={styles.idBadge}>
+              {item.center ? `${item.center} • ` : ''}
+              {item.id}
+            </ThemedText>
+            <Feather
+              name="chevron-right"
+              size={16}
+              color={theme.textSecondary}
+              style={styles.chevron}
+            />
+          </View>
 
-        {item.description ? (
-          <ThemedText
-            type="small"
-            themeColor="textSecondary"
-            numberOfLines={3}
-            style={styles.description}>
-            {item.description}
+          <ThemedText type="default" style={styles.title} numberOfLines={2}>
+            {item.title}
           </ThemedText>
-        ) : (
-          <ThemedText
-            type="small"
-            themeColor="textSecondary"
-            style={styles.descriptionMissing}>
-            No description available for this observation.
-          </ThemedText>
-        )}
-      </View>
-    </ThemedView>
+
+          {item.description ? (
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              numberOfLines={3}
+              style={styles.description}>
+              {item.description}
+            </ThemedText>
+          ) : (
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              style={styles.descriptionMissing}>
+              No description available for this observation.
+            </ThemedText>
+          )}
+        </View>
+      </ThemedView>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  pressable: {
+    borderRadius: Spacing.four,
+  },
+  cardPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.99 }],
+  },
   card: {
     borderRadius: Spacing.four,
     overflow: 'hidden',
@@ -110,11 +141,15 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   idBadge: {
     fontSize: 11,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  chevron: {
+    opacity: 0.6,
   },
   title: {
     fontWeight: '700',
