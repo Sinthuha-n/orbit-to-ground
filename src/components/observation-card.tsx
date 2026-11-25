@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { FavouriteButton } from '@/components/favourite-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -57,6 +58,20 @@ export function ObservationCard({ item }: ObservationCardProps) {
               </ThemedText>
             </View>
           )}
+
+          {/* Favourite Toggle Button */}
+          <View style={styles.favouriteButtonOverlay}>
+            <FavouriteButton
+              item={{
+                nasaId: item.id,
+                title: item.title,
+                thumbnailUrl: item.thumbnailUrl,
+                center: item.center,
+                dateCreated: item.dateCreated,
+              }}
+              variant="floating"
+            />
+          </View>
         </View>
 
         {/* Content Details */}
@@ -133,6 +148,12 @@ const styles = StyleSheet.create({
   },
   fallbackText: {
     fontSize: 12,
+  },
+  favouriteButtonOverlay: {
+    position: 'absolute',
+    top: Spacing.two,
+    right: Spacing.two,
+    zIndex: 5,
   },
   content: {
     padding: Spacing.four,

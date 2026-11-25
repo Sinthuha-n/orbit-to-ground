@@ -5,12 +5,14 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import { authApi } from './api/auth-api';
 import { nasaApi } from './api/nasa-api';
 import authReducer from './slices/auth-slice';
+import favouritesReducer from './slices/favourites-slice';
 
 export const store = configureStore({
   reducer: {
     [nasaApi.reducerPath]: nasaApi.reducer,
     [authApi.reducerPath]: authApi.reducer,
     auth: authReducer,
+    favourites: favouritesReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(nasaApi.middleware, authApi.middleware),

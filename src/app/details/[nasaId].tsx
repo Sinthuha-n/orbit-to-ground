@@ -14,10 +14,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { FavouriteButton } from '@/components/favourite-button';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useGetImageDetailsQuery } from '@/store/api/nasa-api';
-import { isValidNasaId } from '@/types/nasa';
+import { isValidNasaId, NasaImageDetail } from '@/types/nasa';
 
 function formatDate(dateStr?: string | null): string | null {
   if (!dateStr) return null;
@@ -60,8 +61,11 @@ export default function DetailsScreen() {
     paddingBottom: insets.bottom + Spacing.six,
   };
 
-  // Top navigation header bar with Back button
-  const renderTopBar = (titleText: string = 'Observation Details') => (
+  // Top navigation header bar with Back button and optional Favourite action
+  const renderTopBar = (
+    titleText: string = 'Observation Details',
+    observationData?: NasaImageDetail
+  ) => (
     <View style={styles.topBar}>
       <Pressable
         onPress={() => router.back()}
@@ -71,9 +75,9 @@ export default function DetailsScreen() {
           pressed && styles.buttonPressed,
         ]}
         accessibilityRole="button"
-        accessibilityLabel="Go back to Explore list">
+        accessibilityLabel="Go back">
         <Feather name="arrow-left" size={20} color={theme.text} />
-        <ThemedText style={styles.backButtonLabel}>Explore</ThemedText>
+        <ThemedText style={styles.backButtonLabel}>Back</ThemedText>
       </Pressable>
 
       <ThemedText
@@ -83,6 +87,21 @@ export default function DetailsScreen() {
         style={styles.topBarTitle}>
         {titleText}
       </ThemedText>
+
+      {observationData ? (
+        <FavouriteButton
+          item={{
+            nasaId: observationData.id,
+            title: observationData.title,
+            thumbnailUrl: observationData.thumbnailUrl || observationData.imageUrl,
+            center: observationData.center,
+            dateCreated: observationData.dateCreated,
+          }}
+          variant="topBar"
+        />
+      ) : (
+        <View style={styles.topBarPlaceholder} />
+      )}
     </View>
   );
 
@@ -220,7 +239,7 @@ export default function DetailsScreen() {
     <ThemedView style={styles.screen}>
       <View style={styles.stickyHeaderWrapper}>
         <View style={[styles.innerContainer, { paddingTop: insets.top + Spacing.two }]}>
-          {renderTopBar(observation.id)}
+          {renderTopBar(observation.id, observation)}
         </View>
       </View>
 
@@ -391,6 +410,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     maxWidth: 180,
+  },
+  topBarPlaceholder: {
+    width: 44,
+    height: 44,
   },
   buttonPressed: {
     opacity: 0.75,
