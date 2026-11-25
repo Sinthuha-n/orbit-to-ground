@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import { router } from 'expo-router';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +15,7 @@ import { ObservationCard } from '@/components/observation-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuthSession } from '@/hooks/use-auth-session';
 import { useTheme } from '@/hooks/use-theme';
 import { useGetEarthImageryQuery } from '@/store/api/nasa-api';
 import { NasaEarthObservation } from '@/types/nasa';
@@ -23,6 +25,7 @@ const DEFAULT_QUERY = 'river delta';
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const { user, logout } = useAuthSession();
 
   const {
     data: observations = [],
@@ -38,16 +41,47 @@ export default function ExploreScreen() {
     paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
   };
 
+  const handleLogout = async () => {
+    await logout();
+    // Use replace so Android Back cannot reopen an authenticated screen after logout
+    router.replace('/(auth)/login');
+  };
+
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.badgeRow}>
+      {/* Top Profile / Mission Row */}
+      <View style={styles.topRow}>
         <View style={[styles.badge, { backgroundColor: theme.backgroundElement }]}>
           <Feather name="globe" size={13} color={theme.text} />
           <ThemedText type="code" style={styles.badgeText}>
             NASA Earth Science
           </ThemedText>
         </View>
+
+        {user ? (
+          <View style={styles.userSection}>
+            <View style={[styles.userChip, { backgroundColor: theme.backgroundElement }]}>
+              <Feather name="user" size={12} color={theme.text} />
+              <ThemedText type="smallBold" numberOfLines={1} style={styles.userName}>
+                {user.firstName} {user.lastName}
+              </ThemedText>
+            </View>
+
+            <Pressable
+              onPress={handleLogout}
+              style={({ pressed }) => [
+                styles.logoutButton,
+                pressed && styles.buttonPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out of application">
+              <Feather name="log-out" size={13} color="#E5484D" />
+              <ThemedText style={styles.logoutText}>Sign Out</ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
+
       <ThemedText type="subtitle" style={styles.headingTitle}>
         Orbit to Ground
       </ThemedText>
@@ -209,8 +243,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
     gap: Spacing.one,
   },
-  badgeRow: {
+  topRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
     marginBottom: Spacing.one,
   },
   badge: {
@@ -226,6 +264,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
+  },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  userChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.two + Spacing.half,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.five,
+    maxWidth: 160,
+  },
+  userName: {
+    fontSize: 12,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.half,
+    backgroundColor: 'rgba(229, 72, 77, 0.1)',
+    paddingHorizontal: Spacing.two + Spacing.half,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.five,
+  },
+  logoutText: {
+    color: '#E5484D',
+    fontSize: 12,
+    fontWeight: '700',
   },
   headingTitle: {
     fontWeight: '800',

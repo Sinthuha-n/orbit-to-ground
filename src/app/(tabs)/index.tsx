@@ -6,10 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuthSession } from '@/hooks/use-auth-session';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const { user } = useAuthSession();
 
   return (
     <ThemedView style={styles.container}>
@@ -22,7 +24,7 @@ export default function HomeScreen() {
             Orbit to Ground
           </ThemedText>
           <ThemedText type="default" themeColor="textSecondary" style={styles.subtitle}>
-            Explore Earth from orbit
+            {user ? `Welcome, ${user.firstName}! Ready to explore.` : 'Explore Earth from orbit'}
           </ThemedText>
         </View>
 

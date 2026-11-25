@@ -2,14 +2,18 @@ import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 
+import { authApi } from './api/auth-api';
 import { nasaApi } from './api/nasa-api';
+import authReducer from './slices/auth-slice';
 
 export const store = configureStore({
   reducer: {
     [nasaApi.reducerPath]: nasaApi.reducer,
+    [authApi.reducerPath]: authApi.reducer,
+    auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(nasaApi.middleware),
+    getDefaultMiddleware().concat(nasaApi.middleware, authApi.middleware),
 });
 
 setupListeners(store.dispatch);
