@@ -17,7 +17,7 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useFavourites } from '@/hooks/use-favourites';
 import { useTheme } from '@/hooks/use-theme';
-import { FavouriteItem } from '@/types/favourites';
+import { FavouriteItem, hasJournalEntry } from '@/types/favourites';
 
 interface FavouriteCardProps {
   item: FavouriteItem;
@@ -78,16 +78,43 @@ function FavouriteCard({ item, onRemove, onPress }: FavouriteCardProps) {
 
         <View style={styles.cardContent}>
           <View style={styles.cardMetaRow}>
-            <ThemedText type="code" themeColor="textSecondary" style={styles.idBadge}>
-              {item.center ? `${item.center} • ` : ''}
-              {item.nasaId}
-            </ThemedText>
+            <View style={styles.idBadgeGroup}>
+              <ThemedText type="code" themeColor="textSecondary" style={styles.idBadge}>
+                {item.center ? `${item.center} • ` : ''}
+                {item.nasaId}
+              </ThemedText>
+              {hasJournalEntry(item) ? (
+                <View style={[styles.journalPill, { backgroundColor: 'rgba(32, 138, 239, 0.12)' }]}>
+                  <Feather
+                    name={item.journal?.photoUri ? 'camera' : 'file-text'}
+                    size={10}
+                    color="#208AEF"
+                  />
+                  <ThemedText type="code" style={styles.journalPillText}>
+                    Ground Journal
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
             <Feather name="chevron-right" size={16} color={theme.textSecondary} style={styles.chevron} />
           </View>
 
           <ThemedText type="default" style={styles.cardTitle} numberOfLines={2}>
             {item.title}
           </ThemedText>
+
+          {item.journal?.note ? (
+            <View style={[styles.journalNoteBox, { backgroundColor: theme.backgroundSelected }]}>
+              <Feather name="edit-3" size={12} color="#208AEF" />
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                numberOfLines={2}
+                style={styles.journalNoteText}>
+                &quot;{item.journal.note}&quot;
+              </ThemedText>
+            </View>
+          ) : null}
         </View>
       </ThemedView>
     </Pressable>
@@ -439,6 +466,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  idBadgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  journalPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.half,
+    paddingHorizontal: Spacing.one + Spacing.half,
+    paddingVertical: 2,
+    borderRadius: Spacing.one,
+  },
+  journalPillText: {
+    fontSize: 10,
+    color: '#208AEF',
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  journalNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    padding: Spacing.two + Spacing.half,
+    borderRadius: Spacing.two,
+    marginTop: Spacing.half,
+  },
+  journalNoteText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontStyle: 'italic',
+    flex: 1,
   },
   idBadge: {
     fontSize: 11,

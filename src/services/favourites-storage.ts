@@ -37,6 +37,24 @@ export async function loadUserFavourites(
         const id = item.nasaId.trim();
         if (!seen.has(id)) {
           seen.add(id);
+          const journal =
+            item.journal && typeof item.journal === 'object'
+              ? {
+                  note:
+                    typeof item.journal.note === 'string'
+                      ? item.journal.note.slice(0, 300)
+                      : '',
+                  photoUri:
+                    typeof item.journal.photoUri === 'string'
+                      ? item.journal.photoUri
+                      : null,
+                  updatedAt:
+                    typeof item.journal.updatedAt === 'string'
+                      ? item.journal.updatedAt
+                      : new Date().toISOString(),
+                }
+              : null;
+
           sanitized.push({
             nasaId: id,
             title: typeof item.title === 'string' ? item.title.trim() : 'Untitled Observation',
@@ -44,6 +62,7 @@ export async function loadUserFavourites(
             center: typeof item.center === 'string' ? item.center : null,
             dateCreated: typeof item.dateCreated === 'string' ? item.dateCreated : null,
             savedAt: typeof item.savedAt === 'string' ? item.savedAt : new Date().toISOString(),
+            journal,
           });
         }
       }
